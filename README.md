@@ -39,8 +39,8 @@ L'objectif est d'automatiser la compilation, les tests, la création d'une image
 | Java | 17 |
 | Spring Boot | 4.1.0 |
 | Maven | 3.9.16 |
-| Git | 2.x |
-| Docker Desktop | 29.x |
+| Git | 2.54.0.windows.1 |
+| Docker Desktop | 29.5.2,|
 | Jenkins | 2.563 |
 | Windows | 11 |
 
