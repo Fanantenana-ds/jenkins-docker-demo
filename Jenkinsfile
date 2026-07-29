@@ -11,11 +11,75 @@ pipeline {
         CONTAINER_NAME = "jenkins-demo"
     }
 
-   stage('Docker Login') {
-    steps {
-        bat 'docker login -u manaosoa -p TON_DOCKER_TOKEN'
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Maven') {
+            steps {
+                bat 'mvn clean package'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                bat 'mvn test'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                bat 'docker build -t %IMAGE_NAME%:latest .'
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                script {
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'dockerhub',
+                            usernameVariable: 'DOCKER_USER',
+                            passwordVariable: 'DOCKER_PASS'
+                        )
+                    ]) {
+
+                        bat """
+                        echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                        """
+
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                bat 'docker push %IMAGE_NAME%:latest'
+            }
+        }
+
+        stage('Remove Old Container') {
+            steps {
+                bat '''
+                docker stop %CONTAINER_NAME% 2>nul
+                docker rm %CONTAINER_NAME% 2>nul
+                '''
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                bat '''
+                docker run -d --name %CONTAINER_NAME% -p 8081:8080 %IMAGE_NAME%:latest
+                '''
+            }
+        }
     }
-}
 
     post {
 
