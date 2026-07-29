@@ -1,5 +1,4 @@
 pipeline {
-
     agent any
 
     tools {
@@ -8,27 +7,12 @@ pipeline {
     }
 
     environment {
-
-        IMAGE_NAME = "jenkins-docker-demo"
-        DOCKERHUB_REPO = "manaosoa/jenkins-docker-demo"
-
+        IMAGE_NAME = "manaosoa/jenkins-docker-demo"
         CONTAINER_NAME = "jenkins-demo"
-
-        HOST_PORT = "8081"
-        CONTAINER_PORT = "8080"
+        DOCKER_CREDENTIALS = "dockerhub"
     }
 
     stages {
-
-        stage('Informations') {
-            steps {
-                echo "======================================="
-                echo "Début du pipeline Jenkins"
-                echo "Projet : ${env.JOB_NAME}"
-                echo "Build  : ${env.BUILD_NUMBER}"
-                echo "======================================="
-            }
-        }
 
         stage('Checkout') {
             steps {
@@ -50,16 +34,12 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                bat '''
-docker build -t %IMAGE_NAME% .
-'''
+                bat 'docker build -t %IMAGE_NAME%:latest .'
             }
         }
 
         stage('Docker Login') {
-
             steps {
-
                 withCredentials([
                     usernamePassword(
                         credentialsId: 'dockerhub',
@@ -67,101 +47,44 @@ docker build -t %IMAGE_NAME% .
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-
                     bat '''
-echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-'''
+                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                    '''
                 }
-
             }
-
-        }
-
-        stage('Tag Docker Image') {
-
-            steps {
-
-                bat '''
-docker tag %IMAGE_NAME% %DOCKERHUB_REPO%:latest
-'''
-
-            }
-
         }
 
         stage('Push Docker Hub') {
-
             steps {
-
-                bat '''
-docker push %DOCKERHUB_REPO%:latest
-'''
-
+                bat 'docker push %IMAGE_NAME%:latest'
             }
-
         }
 
-        stage('Stop Ancien Conteneur') {
-
+        stage('Stop Old Container') {
             steps {
-
                 bat '''
-docker stop %CONTAINER_NAME% || exit 0
-docker rm %CONTAINER_NAME% || exit 0
-'''
-
+                docker stop %CONTAINER_NAME% || exit 0
+                docker rm %CONTAINER_NAME% || exit 0
+                '''
             }
-
         }
 
-        stage('Lancer Nouveau Conteneur') {
-
+        stage('Run New Container') {
             steps {
-
                 bat '''
-docker run -d ^
---name %CONTAINER_NAME% ^
--p %HOST_PORT%:%CONTAINER_PORT% ^
-%IMAGE_NAME%
-'''
-
+                docker run -d --name %CONTAINER_NAME% -p 8081:8080 %IMAGE_NAME%:latest
+                '''
             }
-
         }
-
     }
 
     post {
-
         success {
-
-            echo ""
-            echo "===================================="
-            echo "Pipeline exécuté avec succès"
-            echo "===================================="
-
-            echo "Image Docker : ${DOCKERHUB_REPO}:latest"
-
-            echo "Application : http://localhost:8081"
-
+            echo 'Pipeline exécutée avec succès !'
         }
 
         failure {
-
-            echo ""
-            echo "===================================="
-            echo "Le pipeline a échoué"
-            echo "Consultez les logs Jenkins"
-            echo "===================================="
-
+            echo 'Échec de la pipeline.'
         }
-
-        always {
-
-            bat 'docker images'
-
-        }
-
     }
-
 }
