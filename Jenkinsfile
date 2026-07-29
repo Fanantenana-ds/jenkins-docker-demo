@@ -8,14 +8,15 @@ pipeline {
 
     environment {
         IMAGE_NAME = "jenkins-docker-demo"
+        DOCKER_REPO = "manaosoa/jenkins-docker-demo"
         CONTAINER_NAME = "jenkins-demo"
     }
 
     stages {
 
-        stage('Clone') {
+        stage('Checkout') {
             steps {
-                echo 'Le projet est déjà cloné par Jenkins.'
+                checkout scm
             }
         }
 
@@ -28,6 +29,30 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 bat 'docker build -t %IMAGE_NAME% .'
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
+                }
+            }
+        }
+
+        stage('Tag Docker Image') {
+            steps {
+                bat 'docker tag %IMAGE_NAME% %DOCKER_REPO%:latest'
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                bat 'docker push %DOCKER_REPO%:latest'
             }
         }
 
@@ -45,16 +70,15 @@ docker rm %CONTAINER_NAME% || exit 0
                 bat 'docker run -d -p 8081:8080 --name %CONTAINER_NAME% %IMAGE_NAME%'
             }
         }
-
     }
 
     post {
         success {
-            echo 'Pipeline terminé avec succès !'
+            echo 'Pipeline exécutée avec succès !'
         }
 
         failure {
-            echo 'Le pipeline a échoué.'
+            echo 'La pipeline a échoué.'
         }
     }
 }
