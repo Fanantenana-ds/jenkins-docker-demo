@@ -7,26 +7,18 @@ pipeline {
         jdk 'JDK21'
     }
 
-
     environment {
         IMAGE_NAME = "manaosoa/jenkins-docker-demo"
+        CONTAINER_NAME = "jenkins-demo"
     }
-
 
     stages {
 
-
         stage('Checkout') {
             steps {
-                git(
-                    url: 'https://github.com/Fanantenana-ds/jenkins-docker-demo.git',
-                    branch: 'master',
-                    credentialsId: 'github-token'
-                )
+                checkout scm
             }
         }
-
-
 
         stage('Build Maven') {
             steps {
@@ -34,92 +26,73 @@ pipeline {
             }
         }
 
-
-
         stage('Tests') {
             steps {
                 bat 'mvn test'
             }
         }
 
-
-
         stage('Build Docker Image') {
             steps {
-                bat '''
-                docker build -t %IMAGE_NAME%:latest .
-                '''
+                bat 'docker build -t %IMAGE_NAME%:latest .'
             }
         }
 
-
-
         stage('Docker Login') {
             steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-token',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-
-                    bat '''
-                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-                    '''
-
+                script {
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'dockerhub-token',
+                            usernameVariable: 'DOCKER_USER',
+                            passwordVariable: 'DOCKER_PASS'
+                        )
+                    ]) {
+                        bat """
+                        echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                        """
+                    }
                 }
             }
         }
 
-
-
         stage('Push Docker Hub') {
             steps {
-                bat '''
-                docker push %IMAGE_NAME%:latest
-                '''
+                bat 'docker push %IMAGE_NAME%:latest'
             }
         }
-
-
 
         stage('Stop Old Container') {
             steps {
                 bat '''
-                docker stop jenkins-demo || exit 0
-                docker rm jenkins-demo || exit 0
+                docker stop %CONTAINER_NAME% 2>nul
+                docker rm %CONTAINER_NAME% 2>nul
                 '''
             }
         }
-
-
 
         stage('Run New Container') {
             steps {
                 bat '''
-                docker run -d ^
-                --name jenkins-demo ^
-                -p 8080:8080 ^
-                %IMAGE_NAME%:latest
+                docker run -d --name %CONTAINER_NAME% -p 8081:8080 %IMAGE_NAME%:latest
                 '''
             }
         }
 
-
     }
 
-
     post {
-
         success {
-            echo "Pipeline terminée avec succès"
+            echo 'Pipeline terminée avec succès !'
         }
 
         failure {
-            echo "Pipeline échouée"
+            echo 'Pipeline échouée.'
         }
 
+        always {
+            cleanWs()
+        }
     }
 
 }
