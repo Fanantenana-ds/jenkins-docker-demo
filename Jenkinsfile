@@ -14,9 +14,6 @@ pipeline {
 
     stages {
 
-        // =================================================================
-        // 1. DIAGNOSTIC DE L'ENVIRONNEMENT DOCKER
-        // =================================================================
         stage('Diagnostic Docker') {
             steps {
                 bat '''
@@ -44,9 +41,6 @@ pipeline {
             }
         }
 
-        // =================================================================
-        // 2. CHECKOUT DU CODE
-        // =================================================================
         stage('Checkout') {
             steps {
                 git(
@@ -57,36 +51,24 @@ pipeline {
             }
         }
 
-        // =================================================================
-        // 3. BUILD MAVEN
-        // =================================================================
         stage('Build Maven') {
             steps {
                 bat 'mvn clean package'
             }
         }
 
-        // =================================================================
-        // 4. TESTS
-        // =================================================================
         stage('Tests') {
             steps {
                 bat 'mvn test'
             }
         }
 
-        // =================================================================
-        // 5. BUILD DOCKER IMAGE
-        // =================================================================
         stage('Build Docker Image') {
             steps {
                 bat 'docker build -t %IMAGE_NAME%:latest .'
             }
         }
 
-        // =================================================================
-        // 6. VÉRIFICATION DU CREDENTIAL DOCKER HUB
-        // =================================================================
         stage('Check Docker Credential') {
             steps {
                 withCredentials([
@@ -111,7 +93,6 @@ pipeline {
                             echo "✅ Le token commence par 'dckr_pat' (format PAT valide)."
                         } else {
                             echo "⚠️  ATTENTION : le token ne commence pas par 'dckr_pat'."
-                            echo "   Assure-toi d'avoir généré un Personal Access Token sur Docker Hub."
                         }
                         echo "========================================"
                     }
@@ -119,9 +100,6 @@ pipeline {
             }
         }
 
-        // =================================================================
-        // 7. DOCKER LOGIN (avec suppression du CRLF)
-        // =================================================================
         stage('Docker Login') {
             steps {
                 withCredentials([
@@ -139,7 +117,6 @@ pipeline {
                         echo "${env.DOCKER_PASS}"
                         echo "----------------------------------------"
 
-                        // Écrire le token dans un fichier sans CRLF
                         bat """
                             (echo|set /p="%DOCKER_PASS%") > token.txt
                             echo "Contenu du fichier token.txt :"
@@ -147,12 +124,10 @@ pipeline {
                             echo "---- FIN DU FICHIER ----"
                         """
 
-                        // Exécuter le login avec le fichier
                         bat """
                             docker login -u %DOCKER_USER% --password-stdin < token.txt
                         """
 
-                        // Nettoyer
                         bat "del token.txt"
                         echo "========================================"
                     }
@@ -160,18 +135,12 @@ pipeline {
             }
         }
 
-        // =================================================================
-        // 8. PUSH DOCKER IMAGE
-        // =================================================================
         stage('Push Docker Image') {
             steps {
                 bat 'docker push %IMAGE_NAME%:latest'
             }
         }
 
-        // =================================================================
-        // 9. ARRÊT DE L'ANCIEN CONTENEUR
-        // =================================================================
         stage('Stop Old Container') {
             steps {
                 bat '''
@@ -181,9 +150,6 @@ pipeline {
             }
         }
 
-        // =================================================================
-        // 10. LANCEMENT DU NOUVEAU CONTENEUR
-        // =================================================================
         stage('Run Docker Container') {
             steps {
                 bat '''
@@ -197,25 +163,19 @@ pipeline {
 
     }
 
-    // =================================================================
-    // POST ACTIONS
-    // =================================================================
     post {
-
         success {
             echo '========================================'
             echo '✅ PIPELINE EXÉCUTÉE AVEC SUCCÈS'
             echo '========================================'
         }
-
         failure {
             echo '========================================'
             echo '❌ LA PIPELINE A ÉCHOUÉ'
             echo '========================================'
         }
-
         always {
-            deleteDir()   // nettoie le workspace (pas besoin de plugin Workspace Cleanup)
+            deleteDir()
             echo 'Fin de la pipeline.'
         }
     }
