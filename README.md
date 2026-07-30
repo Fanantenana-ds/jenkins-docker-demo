@@ -662,9 +662,9 @@ Plusieurs évolutions peuvent être envisagées pour ce projet :
 
 # 👨‍💻 Auteur
 
-**Manaosoa RANDRIA**
+**Groupe CI/CD ENI IA 2026**
 
-GitHub :
+GitHub pour cette projet:
 
 https://github.com/Fanantenana-ds
 
