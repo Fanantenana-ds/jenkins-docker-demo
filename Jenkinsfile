@@ -63,6 +63,24 @@ pipeline {
             }
         }
 
+        stage('Test Docker Credentials') {
+    steps {
+        withCredentials([
+            usernamePassword(
+                credentialsId: 'dockerhub-token',
+                usernameVariable: 'USER',
+                passwordVariable: 'PASS'
+            )
+        ]) {
+            bat '''
+            echo USER=%USER%
+            echo PASSWORD LENGTH
+            echo %PASS% | find /c /v ""
+            '''
+        }
+    }
+}
+
         stage('Push Docker Image') {
             steps {
                 bat 'docker push %IMAGE_NAME%:latest'
