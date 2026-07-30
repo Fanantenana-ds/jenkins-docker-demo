@@ -1,6 +1,6 @@
 # 🚀 TP CI/CD avec Jenkins, Docker et Spring Boot
 
-## 📖 Descriptions 
+## 📖 Descriptions de TP
 
 Ce projet est un TP permettant d'apprendre la mise en place d'une chaîne **CI/CD (Continuous Integration / Continuous Deployment)** en utilisant :
 
