@@ -55,7 +55,6 @@ pipeline {
                     )
                 ]) {
                     script {
-                        // Récupérer la longueur du mot de passe
                         def passLen = env.DOCKER_PASS.length()
                         def firstChars = env.DOCKER_PASS.substring(0, Math.min(4, passLen))
                         def lastChars = env.DOCKER_PASS.substring(Math.max(0, passLen - 4))
@@ -63,7 +62,6 @@ pipeline {
                         echo "Longueur du token : ${passLen} caractères"
                         echo "Début du token    : ${firstChars}..."
                         echo "Fin du token      : ...${lastChars}"
-                        // Vérifier que le token commence par "dckr_pat" (format PAT)
                         if (env.DOCKER_PASS.startsWith("dckr_pat")) {
                             echo "Le token semble avoir le bon format PAT."
                         } else {
@@ -77,7 +75,7 @@ pipeline {
         }
 
         // ------------------------------------------------------------
-        // Tentative de login avec logs détaillés
+        // Docker Login avec diagnostic avancé
         // ------------------------------------------------------------
         stage('Docker Login') {
             steps {
@@ -89,31 +87,32 @@ pipeline {
                     )
                 ]) {
                     script {
-                        // On exécute la commande de login et on capture la sortie
-                        def loginCmd = "echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin"
+                        // 1. Afficher le token en clair (pour vérifier qu'il est exactement celui attendu)
+                        echo "=== DIAGNOSTIC : Token complet (affiché en clair) ==="
+                        echo "${env.DOCKER_PASS}"
+                        echo "======================================================"
+
+                        // 2. Créer un fichier temporaire contenant le token
                         bat """
-                            echo "========================================="
-                            echo "Tentative de login Docker..."
-                            echo "Utilisateur : %DOCKER_USER%"
-                            echo "Commande : ${loginCmd}"
-                            echo "========================================="
-                            ${loginCmd}
+                            echo %DOCKER_PASS% > token.txt
+                            echo "Token écrit dans token.txt"
+                            type token.txt
                         """
-                        // La commande echo %DOCKER_PASS% sera masquée par Jenkins (masking)
-                        // mais on peut ajouter une redirection de sortie pour voir l'erreur
+
+                        // 3. Login en utilisant le fichier (plus fiable que le pipe)
                         bat """
-                            echo "Test avec 'docker login' sans stdin pour voir l'erreur :"
-                            docker login -u %DOCKER_USER% -p %DOCKER_PASS% || echo "ERREUR : le login a échoué."
-                            echo "========================================="
+                            docker login -u %DOCKER_USER% --password-stdin < token.txt
                         """
-                        // Note : la deuxième commande est moins sécurisée mais donne une erreur explicite.
+
+                        // 4. Supprimer le fichier
+                        bat "del token.txt"
                     }
                 }
             }
         }
 
         // ------------------------------------------------------------
-        // Après la correction, on peut pousser l'image
+        // Push, stop, run
         // ------------------------------------------------------------
         stage('Push Docker Image') {
             steps {
@@ -158,7 +157,6 @@ pipeline {
         }
 
         always {
-            // Nettoie le workspace (remplace cleanWs() par deleteDir() pour éviter l'erreur)
             deleteDir()
             echo 'Fin de la pipeline.'
         }
