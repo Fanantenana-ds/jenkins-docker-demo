@@ -17,26 +17,13 @@ pipeline {
         stage('Diagnostic Docker') {
             steps {
                 bat '''
-                echo "========================================"
-                echo "   DIAGNOSTIC DOCKER"
-                echo "========================================"
-                echo "1. Où se trouve l'exécutable docker ?"
+                echo ========================================
+                echo DIAGNOSTIC DOCKER
+                echo ========================================
                 where docker
-                echo ""
-                echo "2. Version de Docker :"
                 docker --version
-                echo ""
-                echo "3. Contextes Docker disponibles :"
-                docker context ls
-                echo ""
-                echo "4. Contexte actif :"
                 docker context show
-                echo ""
-                echo "5. Utilisateur actuel :"
                 whoami
-                echo ""
-                echo "6. USERPROFILE : %USERPROFILE%"
-                echo "========================================"
                 '''
             }
         }
@@ -73,28 +60,29 @@ pipeline {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: 'dockerhub-token',
+                        credentialsId: 'jeton Docker Hub',
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
                     script {
-                        def passLen = env.DOCKER_PASS.length()
-                        def firstChars = env.DOCKER_PASS.substring(0, Math.min(4, passLen))
-                        def lastChars = env.DOCKER_PASS.substring(Math.max(0, passLen - 4))
+
+                        def len = env.DOCKER_PASS.length()
+
                         echo "========================================"
-                        echo "   VÉRIFICATION DU CREDENTIAL"
+                        echo "Vérification du credential Docker Hub"
                         echo "========================================"
-                        echo "Utilisateur Docker : ${env.DOCKER_USER}"
-                        echo "Longueur du token  : ${passLen} caractères"
-                        echo "Début du token     : ${firstChars}..."
-                        echo "Fin du token       : ...${lastChars}"
+                        echo "Utilisateur : ${env.DOCKER_USER}"
+                        echo "Longueur PAT : ${len}"
+
                         if (env.DOCKER_PASS.startsWith("dckr_pat")) {
-                            echo "✅ Le token commence par 'dckr_pat' (format PAT valide)."
+                            echo "Format PAT : OK"
                         } else {
-                            echo "⚠️  ATTENTION : le token ne commence pas par 'dckr_pat'."
+                            echo "Format PAT : INCORRECT"
                         }
+
                         echo "========================================"
+
                     }
                 }
             }
@@ -104,33 +92,18 @@ pipeline {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: 'dockerhub-token',
+                        credentialsId: 'jeton Docker Hub',
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-                    script {
-                        echo "========================================"
-                        echo "   TENTATIVE DE LOGIN DOCKER HUB"
-                        echo "========================================"
-                        echo "Token complet (affiché pour diagnostic) :"
-                        echo "${env.DOCKER_PASS}"
-                        echo "----------------------------------------"
 
-                        bat """
-                            (echo|set /p="%DOCKER_PASS%") > token.txt
-                            echo "Contenu du fichier token.txt :"
-                            type token.txt
-                            echo "---- FIN DU FICHIER ----"
-                        """
+                    bat '''
+                    @echo off
+                    echo Connexion Docker Hub...
+                    echo %DOCKER_PASS%| docker login -u %DOCKER_USER% --password-stdin
+                    '''
 
-                        bat """
-                            docker login -u %DOCKER_USER% --password-stdin < token.txt
-                        """
-
-                        bat "del token.txt"
-                        echo "========================================"
-                    }
                 }
             }
         }
@@ -144,8 +117,9 @@ pipeline {
         stage('Stop Old Container') {
             steps {
                 bat '''
-                docker stop %CONTAINER_NAME% || exit /b 0
-                docker rm %CONTAINER_NAME% || exit /b 0
+                docker stop %CONTAINER_NAME% >nul 2>&1
+                docker rm %CONTAINER_NAME% >nul 2>&1
+                exit /b 0
                 '''
             }
         }
@@ -153,10 +127,7 @@ pipeline {
         stage('Run Docker Container') {
             steps {
                 bat '''
-                docker run -d ^
-                --name %CONTAINER_NAME% ^
-                -p 8081:8080 ^
-                %IMAGE_NAME%:latest
+                docker run -d --name %CONTAINER_NAME% -p 8081:8080 %IMAGE_NAME%:latest
                 '''
             }
         }
@@ -164,19 +135,24 @@ pipeline {
     }
 
     post {
+
         success {
-            echo '========================================'
-            echo '✅ PIPELINE EXÉCUTÉE AVEC SUCCÈS'
-            echo '========================================'
+            echo "========================================"
+            echo "Pipeline exécutée avec succès."
+            echo "========================================"
         }
+
         failure {
-            echo '========================================'
-            echo '❌ LA PIPELINE A ÉCHOUÉ'
-            echo '========================================'
+            echo "========================================"
+            echo "La pipeline a échoué."
+            echo "========================================"
         }
+
         always {
             deleteDir()
-            echo 'Fin de la pipeline.'
+            echo "Fin de la pipeline."
         }
+
     }
+
 }
