@@ -3,8 +3,8 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven-3.9.16'
         jdk 'JDK21'
+        maven 'Maven-3.9.16'
     }
 
     environment {
@@ -16,7 +16,11 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                git(
+                    url: 'https://github.com/Fanantenana-ds/jenkins-docker-demo.git',
+                    branch: 'master',
+                    credentialsId: 'github-token'
+                )
             }
         }
 
@@ -40,23 +44,26 @@ pipeline {
 
         stage('Docker Login') {
             steps {
-                script {
-                    withCredentials([
-                        usernamePassword(
-                            credentialsId: 'dockerhub-token',
-                            usernameVariable: 'DOCKER_USER',
-                            passwordVariable: 'DOCKER_PASS'
-                        )
-                    ]) {
-                        bat """
-                        echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-                        """
-                    }
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-token',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+
+                    bat '''
+                    echo ================================
+                    echo Docker User : %DOCKER_USER%
+                    echo Login Docker Hub...
+                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                    '''
+
                 }
             }
         }
 
-        stage('Push Docker Hub') {
+        stage('Push Docker Image') {
             steps {
                 bat 'docker push %IMAGE_NAME%:latest'
             }
@@ -65,16 +72,19 @@ pipeline {
         stage('Stop Old Container') {
             steps {
                 bat '''
-                docker stop %CONTAINER_NAME% 2>nul
-                docker rm %CONTAINER_NAME% 2>nul
+                docker stop %CONTAINER_NAME% || exit /b 0
+                docker rm %CONTAINER_NAME% || exit /b 0
                 '''
             }
         }
 
-        stage('Run New Container') {
+        stage('Run Docker Container') {
             steps {
                 bat '''
-                docker run -d --name %CONTAINER_NAME% -p 8081:8080 %IMAGE_NAME%:latest
+                docker run -d ^
+                --name %CONTAINER_NAME% ^
+                -p 8081:8080 ^
+                %IMAGE_NAME%:latest
                 '''
             }
         }
@@ -82,17 +92,23 @@ pipeline {
     }
 
     post {
+
         success {
-            echo 'Pipeline terminée avec succès !'
+            echo '====================================='
+            echo 'Pipeline exécutée avec succès !'
+            echo '====================================='
         }
 
         failure {
-            echo 'Pipeline échouée.'
+            echo '====================================='
+            echo 'La pipeline a échoué.'
+            echo '====================================='
         }
 
         always {
-            cleanWs()
+            echo 'Fin de la pipeline.'
         }
+
     }
 
 }
