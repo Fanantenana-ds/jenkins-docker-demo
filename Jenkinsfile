@@ -8,7 +8,7 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = "manaosoa/jenkins-docker-demo"
+        IMAGE_NAME = "fanantenana7170/jenkins-docker-demo"
         CONTAINER_NAME = "jenkins-demo"
     }
 
