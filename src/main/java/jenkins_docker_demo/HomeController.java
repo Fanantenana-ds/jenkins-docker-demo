@@ -8,6 +8,6 @@ public class HomeController {
 
     @GetMapping("/")
     public String home() {
-        return "Hello Jenkins Docker!";
+        return "Hello Jenkins Docker! Une demos de CI/CD avec Docteur Hajarisena";
     }
 }
